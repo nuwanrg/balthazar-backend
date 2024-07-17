@@ -76,6 +76,7 @@ export class NftService {
   ): Promise<any> {
     const cacheKey = `${ownerAddress}-${collection}`;
     const cachedData = await this.redisClient.get(cacheKey);
+    console.log('cache data: ', cachedData);
     if (cachedData) {
       return JSON.parse(cachedData);
     }
@@ -85,6 +86,8 @@ export class NftService {
       accept: 'application/json',
       'x-api-key': this.OS_API_KEY,
     };
+
+    console.log('cache data not found');
 
     const params: any = {};
     if (collection) params.collection = collection;
