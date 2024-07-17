@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { NftModule } from './nft/nft.module';
-import { RedisModule } from './redis.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
