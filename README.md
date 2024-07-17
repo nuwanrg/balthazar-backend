@@ -36,16 +36,16 @@ Balthazar NFT Viewer is a web application that allows users to view NFT data for
 ````
 
 2. **Install Dependencies**
-  ```bash
-  npm install
+```bash
+npm install
 ````
 
 3. **Set Up Environment Variables**
    Create a .env file in the balthazar-backend directory with the following content:
 
 ```bash
-OS_GET_NFT_URL=https://api.opensea.io/api/v2/chain/ethereum/account
-OS_API_KEY=your_opensea_api_key
-USE_CACHE=true
-REDIS_URL=redis://localhost:6379
+  OS_GET_NFT_URL=https://api.opensea.io/api/v2/chain/ethereum/account
+  OS_API_KEY=your_opensea_api_key
+  USE_CACHE=true
+  REDIS_URL=redis://localhost:6379
 ```
