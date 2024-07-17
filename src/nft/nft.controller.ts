@@ -32,7 +32,7 @@ export class NftController {
         owner,
         collection,
       );
-      return response.data;
+      return response; // Directly return the data
     } catch (error) {
       throw new Error(`Failed to fetch NFT data: ${error.message}`);
     }
