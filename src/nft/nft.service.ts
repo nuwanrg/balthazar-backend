@@ -1,22 +1,26 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { AxiosResponse } from 'axios';
 import { Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { throwError } from 'rxjs';
 import { ConfigService } from '@nestjs/config';
+import Redis from 'ioredis';
 
 @Injectable()
 export class NftService {
   private readonly OS_GET_NFT_URL: string;
   private readonly OS_API_KEY: string;
+  private readonly redisClient: Redis;
 
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    @Inject('REDIS_CLIENT') redisClient: Redis,
   ) {
     this.OS_GET_NFT_URL = this.configService.get<string>('OS_GET_NFT_URL');
     this.OS_API_KEY = this.configService.get<string>('OS_API_KEY');
+    this.redisClient = redisClient;
   }
 
   /**
@@ -57,5 +61,48 @@ export class NftService {
         return throwError(() => new Error('Error fetching NFT data'));
       }),
     );
+  }
+
+  /**
+   * Fetch NFT data with caching for a given owner address with optional query parameters.
+   *
+   * @param ownerAddress - The address of the NFT owner.
+   * @param collection - (Optional) The collection to filter the NFTs.
+   * @returns A promise containing the NFT data.
+   */
+  async getNftDataWithCache(
+    ownerAddress: string,
+    collection?: string,
+  ): Promise<any> {
+    const cacheKey = `${ownerAddress}-${collection}`;
+    const cachedData = await this.redisClient.get(cacheKey);
+    if (cachedData) {
+      return JSON.parse(cachedData);
+    }
+
+    const url = `${this.OS_GET_NFT_URL}/${ownerAddress}/nfts`;
+    const headers = {
+      accept: 'application/json',
+      'x-api-key': this.OS_API_KEY,
+    };
+
+    const params: any = {};
+    if (collection) params.collection = collection;
+
+    try {
+      const response = await this.httpService
+        .get(url, { headers, params })
+        .toPromise();
+      await this.redisClient.set(
+        cacheKey,
+        JSON.stringify(response.data),
+        'EX',
+        3600,
+      ); // Cache for 1 hour
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching NFT data:', error);
+      throw new Error('Error fetching NFT data');
+    }
   }
 }

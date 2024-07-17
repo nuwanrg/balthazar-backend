@@ -21,4 +21,20 @@ export class NftController {
       throw new Error(`Failed to fetch NFT data: ${error.message}`);
     }
   }
+
+  @Get('dataWithCache')
+  async getNftDataWithCache(
+    @Query('owner') owner: string,
+    @Query('collection') collection?: string,
+  ) {
+    try {
+      const response = await this.nftService.getNftDataWithCache(
+        owner,
+        collection,
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(`Failed to fetch NFT data: ${error.message}`);
+    }
+  }
 }
