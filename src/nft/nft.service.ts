@@ -76,11 +76,13 @@ export class NftService {
   ): Promise<any> {
     const cacheKey = `${ownerAddress}-${collection}`;
     const cachedData = await this.redisClient.get(cacheKey);
-    console.log('cache data: ', cachedData);
+
     if (cachedData) {
+      console.log('cache data found"');
       return JSON.parse(cachedData);
     }
 
+    console.log('cache data NOT found"');
     const url = `${this.OS_GET_NFT_URL}/${ownerAddress}/nfts`;
     const headers = {
       accept: 'application/json',
