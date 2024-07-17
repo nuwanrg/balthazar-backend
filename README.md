@@ -71,19 +71,20 @@ Balthazar NFT Viewer is a web application that allows users to view NFT data for
 
 ### Performance Test Cache enable
 
-For testing purposes we used two endpoints to test performance. One endpoint uses caches while other is not.
+For testing purposes, we used two endpoints to compare performance. Endpoint1 does not use caching, while Endpoint2 does.
 
 - **Endpoint1** - Without Cache  
   /nft/data?owner=0x29469395eaf6f95920e59f858042f0e28d98a20b&collection=pudgypenguins
 
-Response time :
+Response time :592ms
 ![alt text](image-2.png)
 
-Endpoint2 - With Cache - {{baseurl}}/nft/dataWithCache?owner=0x29469395eaf6f95920e59f858042f0e28d98a20b&collection=pudgypenguins
-Response time ;
-![alt text](image-3.png)
+- **Endpoint2** - With Cache -
+  /nft/dataWithCache?owner=0x29469395eaf6f95920e59f858042f0e28d98a20b&collection=pudgypenguins
+  Response time ; 158ms
+  ![alt text](image-3.png)
 
-Conclusion : As
+Conclusion : Using cache has significantly improved server response time.
 
 ## Challenges Faced and How They Were Overcome
 
