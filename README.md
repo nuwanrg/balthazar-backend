@@ -4,6 +4,10 @@
 
 Balthazar NFT Viewer is a web application that allows users to view NFT data for a given Ethereum wallet address and collection. This repository contains the backend service built with NestJS. The backend interacts with the OpenSea API to fetch NFT data and uses Redis for caching to enhance performance.
 
+## High Level System Architecture
+
+![alt text](image.png)
+
 ## Technologies and APIs
 
 ### Backend
