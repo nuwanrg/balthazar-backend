@@ -71,6 +71,20 @@ Balthazar NFT Viewer is a web application that allows users to view NFT data for
 - **USE_CACHE=true**: The backend will attempt to connect to the Redis server specified by `REDIS_URL` and use caching.
 - **USE_CACHE=false**: The backend will not use Redis for caching, and all requests will fetch fresh data from the OpenSea API.
 
+### Performance Test Cache enable
+
+For testing purposes we used two endpoints to test performance. One endpoint uses caches while other is not.
+
+Endpoint1 - Without Cache - /nft/data?owner=0x29469395eaf6f95920e59f858042f0e28d98a20b&collection=pudgypenguins
+Response time :
+![alt text](image-2.png)
+
+Endpoint2 - With Cache - {{baseurl}}/nft/dataWithCache?owner=0x29469395eaf6f95920e59f858042f0e28d98a20b&collection=pudgypenguins
+Response time ;
+![alt text](image-3.png)
+
+Conclusion : As
+
 ## Challenges Faced and How They Were Overcome
 
 ### CORS Issues
