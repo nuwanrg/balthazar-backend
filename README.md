@@ -28,7 +28,7 @@ Balthazar NFT Viewer is a web application that allows users to view NFT data for
 - npm (>= 6.x)
 - Redis (for caching, optional)
 
-### Installation
+### Setup and Run the project
 
 1. **Clone the Repository**
 
@@ -56,9 +56,7 @@ Balthazar NFT Viewer is a web application that allows users to view NFT data for
 
    - **USE_CACHE**: Set this to `true` to enable caching with Redis. Set it to `false` to disable caching.
 
-### Running the Project
-
-1. **Run the Backend**
+4. **Run the Backend**
 
    ```bash
    npm run start
@@ -75,7 +73,9 @@ Balthazar NFT Viewer is a web application that allows users to view NFT data for
 
 For testing purposes we used two endpoints to test performance. One endpoint uses caches while other is not.
 
-Endpoint1 - Without Cache - /nft/data?owner=0x29469395eaf6f95920e59f858042f0e28d98a20b&collection=pudgypenguins
+- **Endpoint1** - Without Cache  
+  /nft/data?owner=0x29469395eaf6f95920e59f858042f0e28d98a20b&collection=pudgypenguins
+
 Response time :
 ![alt text](image-2.png)
 
