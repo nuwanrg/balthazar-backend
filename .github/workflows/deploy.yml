@@ -26,8 +26,6 @@ jobs:
       - name: Log in to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
-        with:
-          region: ap-southeast-2 # Specify your AWS region here
 
       - name: Build, tag, and push image to ECR
         env:
@@ -38,20 +36,62 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      - name: Install ECS CLI
+      - name: Install AWS CLI and ECS CLI
         run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
           sudo curl -Lo /usr/local/bin/ecs-cli https://amazon-ecs-cli.s3.amazonaws.com/ecs-cli-linux-amd64-latest
           sudo chmod +x /usr/local/bin/ecs-cli
 
-      - name: Deploy to ECS
+      - name: Register Task Definition and Update ECS Service
         env:
+          AWS_REGION: ap-southeast-2
           CLUSTER_NAME: balthazar-cluster
           SERVICE_NAME: balthazar-backend-service
+          TASK_DEFINITION: balthazar-task
           CONTAINER_NAME: balthazar-backend
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: balthazar-backend
           IMAGE_TAG: latest
         run: |
-          ecs-cli configure --cluster $CLUSTER_NAME --default-launch-type FARGATE --region ap-southeast-2 --config-name balthazar-config
-          ecs-cli configure profile --access-key $AWS_ACCESS_KEY_ID --secret-key $AWS_SECRET_ACCESS_KEY --profile-name balthazar-profile
-          ecs-cli compose --file docker-compose.yml service up --create-log-groups --cluster-config balthazar-config --ecs-profile balthazar-profile
+          # Create the task definition JSON file
+          cat <<EOF > taskdef.json
+          {
+            "family": "${TASK_DEFINITION}",
+            "networkMode": "awsvpc",
+            "executionRoleArn": "arn:aws:iam::your-account-id:role/ecsTaskExecutionRole",
+            "taskRoleArn": "arn:aws:iam::your-account-id:role/ecsTaskRole",
+            "containerDefinitions": [
+              {
+                "name": "${CONTAINER_NAME}",
+                "image": "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}",
+                "memory": 512,
+                "cpu": 256,
+                "essential": true,
+                "portMappings": [
+                  {
+                    "containerPort": 3000,
+                    "hostPort": 3000
+                  }
+                ],
+                "logConfiguration": {
+                  "logDriver": "awslogs",
+                  "options": {
+                    "awslogs-group": "/ecs/${SERVICE_NAME}",
+                    "awslogs-region": "${AWS_REGION}",
+                    "awslogs-stream-prefix": "ecs"
+                  }
+                }
+              }
+            ],
+            "requiresCompatibilities": ["FARGATE"],
+            "cpu": "256",
+            "memory": "512"
+          }
+          EOF
+
+          # Register the task definition
+          aws ecs register-task-definition --cli-input-json file://taskdef.json
+
+          # Update the ECS service to use the new task definition
+          aws ecs update-service --cluster ${CLUSTER_NAME} --service ${SERVICE_NAME} --force-new-deployment
