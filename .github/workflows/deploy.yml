@@ -43,6 +43,23 @@ jobs:
           sudo curl -Lo /usr/local/bin/ecs-cli https://amazon-ecs-cli.s3.amazonaws.com/ecs-cli-linux-amd64-latest
           sudo chmod +x /usr/local/bin/ecs-cli
 
+      - name: Create ECS Service if it doesn't exist
+        env:
+          AWS_REGION: ap-southeast-2
+          CLUSTER_NAME: balthazar-cluster
+          SERVICE_NAME: balthazar-backend-service
+          TASK_DEFINITION: balthazar-task
+          SUBNET_ID: subnet-0ab2124445e116c31
+          SECURITY_GROUP_ID: sg-0e1be39336e6b9288
+        run: |
+          SERVICE_EXISTS=$(aws ecs describe-services --cluster ${CLUSTER_NAME} --services ${SERVICE_NAME} --query 'services[0].status' --output text || echo "MISSING")
+          if [ "$SERVICE_EXISTS" == "MISSING" ]; then
+            echo "Creating ECS service..."
+            aws ecs create-service --cluster ${CLUSTER_NAME} --service-name ${SERVICE_NAME} --task-definition ${TASK_DEFINITION} --desired-count 1 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[${SUBNET_ID}],securityGroups=[${SECURITY_GROUP_ID}],assignPublicIp='ENABLED'}"
+          else
+            echo "ECS service already exists."
+          fi
+
       - name: Register Task Definition and Update ECS Service
         env:
           AWS_REGION: ap-southeast-2
