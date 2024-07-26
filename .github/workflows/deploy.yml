@@ -60,7 +60,6 @@ jobs:
             "family": "${TASK_DEFINITION}",
             "networkMode": "awsvpc",
             "executionRoleArn": "arn:aws:iam::727210836757:role/ecsTaskExecutionRole",
-            "taskRoleArn": "arn:aws:iam::727210836757:role/taskRoleArn",
             "containerDefinitions": [
               {
                 "name": "${CONTAINER_NAME}",
