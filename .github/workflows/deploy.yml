@@ -48,8 +48,9 @@ jobs:
           AWS_REGION: ap-southeast-2
           CLUSTER_NAME: balthazar-backend
         run: |
-          CLUSTER_STATUS=$(aws ecs describe-clusters --clusters ${CLUSTER_NAME} --query 'clusters[0].status' --output text)
-          if [ "$CLUSTER_STATUS" == "MISSING" ]; then
+          CLUSTER_STATUS=$(aws ecs describe-clusters --clusters ${CLUSTER_NAME} --query 'clusters[0].status' --output text 2>/dev/null || echo "MISSING")
+          echo "Cluster Status: $CLUSTER_STATUS"
+          if [ "$CLUSTER_STATUS" == "MISSING" ] || [ "$CLUSTER_STATUS" == "None" ]; then
             echo "Creating ECS cluster..."
             aws ecs create-cluster --cluster-name ${CLUSTER_NAME}
           elif [ "$CLUSTER_STATUS" == "INACTIVE" ]; then
