@@ -65,36 +65,17 @@ jobs:
           AWS_REGION: ap-southeast-2
           LOG_GROUP_NAME: /ecs/balthazar-backend-service
         run: |
-          LOG_GROUP_STATUS=$(aws logs describe-log-groups --log-group-name-prefix ${LOG_GROUP_NAME} --query 'logGroups[0].logGroupName' --output text || echo "MISSING")
-          if [ "$LOG_GROUP_STATUS" == "MISSING" ]; then
+          LOG_GROUP_STATUS=$(aws logs describe-log-groups --log-group-name-prefix ${LOG_GROUP_NAME} --query 'logGroups[0].logGroupName' --output text 2>/dev/null || echo "MISSING")
+          if [ "$LOG_GROUP_STATUS" == "MISSING" ] || [ "$LOG_GROUP_STATUS" == "None" ]; then
             echo "Creating CloudWatch log group..."
             aws logs create-log-group --log-group-name ${LOG_GROUP_NAME}
           else
             echo "CloudWatch log group already exists."
           fi
 
-      - name: Create ECS Service if it doesn't exist
+      - name: Register Task Definition
         env:
           AWS_REGION: ap-southeast-2
-          CLUSTER_NAME: balthazar-backend
-          SERVICE_NAME: balthazar-backend-service
-          TASK_DEFINITION: balthazar-task
-          SUBNET_ID: subnet-0ab2124445e116c31
-          SECURITY_GROUP_ID: sg-0e1be39336e6b9288
-        run: |
-          SERVICE_STATUS=$(aws ecs describe-services --cluster ${CLUSTER_NAME} --services ${SERVICE_NAME} --query 'failures[0].reason' --output text || echo "MISSING")
-          if [ "$SERVICE_STATUS" == "MISSING" ]; then
-            echo "Creating ECS service..."
-            aws ecs create-service --cluster ${CLUSTER_NAME} --service-name ${SERVICE_NAME} --task-definition ${TASK_DEFINITION} --desired-count 1 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[${SUBNET_ID}],securityGroups=[${SECURITY_GROUP_ID}],assignPublicIp='ENABLED'}"
-          else
-            echo "ECS service already exists."
-          fi
-
-      - name: Register Task Definition and Update ECS Service
-        env:
-          AWS_REGION: ap-southeast-2
-          CLUSTER_NAME: balthazar-backend
-          SERVICE_NAME: balthazar-backend-service
           TASK_DEFINITION: balthazar-task
           CONTAINER_NAME: balthazar-backend
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -123,7 +104,7 @@ jobs:
                 "logConfiguration": {
                   "logDriver": "awslogs",
                   "options": {
-                    "awslogs-group": "/ecs/${SERVICE_NAME}",
+                    "awslogs-group": "/ecs/balthazar-backend-service",
                     "awslogs-region": "${AWS_REGION}",
                     "awslogs-stream-prefix": "ecs"
                   }
@@ -139,5 +120,29 @@ jobs:
           # Register the task definition
           aws ecs register-task-definition --cli-input-json file://taskdef.json
 
+      - name: Create ECS Service if it doesn't exist
+        env:
+          AWS_REGION: ap-southeast-2
+          CLUSTER_NAME: balthazar-backend
+          SERVICE_NAME: balthazar-backend-service
+          TASK_DEFINITION: balthazar-task
+          SUBNET_ID: subnet-0ab2124445e116c31
+          SECURITY_GROUP_ID: sg-0e1be39336e6b9288
+        run: |
+          SERVICE_STATUS=$(aws ecs describe-services --cluster ${CLUSTER_NAME} --services ${SERVICE_NAME} --query 'failures[0].reason' --output text || echo "MISSING")
+          if [ "$SERVICE_STATUS" == "MISSING" ]; then
+            echo "Creating ECS service..."
+            aws ecs create-service --cluster ${CLUSTER_NAME} --service-name ${SERVICE_NAME} --task-definition ${TASK_DEFINITION} --desired-count 1 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[${SUBNET_ID}],securityGroups=[${SECURITY_GROUP_ID}],assignPublicIp='ENABLED'}"
+          else
+            echo "ECS service already exists."
+          fi
+
+      - name: Update ECS Service
+        env:
+          AWS_REGION: ap-southeast-2
+          CLUSTER_NAME: balthazar-backend
+          SERVICE_NAME: balthazar-backend-service
+          TASK_DEFINITION: balthazar-task
+        run: |
           # Update the ECS service to use the new task definition
           aws ecs update-service --cluster ${CLUSTER_NAME} --service ${SERVICE_NAME} --force-new-deployment
