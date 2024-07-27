@@ -43,12 +43,38 @@ jobs:
           sudo curl -Lo /usr/local/bin/ecs-cli https://amazon-ecs-cli.s3.amazonaws.com/ecs-cli-linux-amd64-latest
           sudo chmod +x /usr/local/bin/ecs-cli
 
+      - name: Create ECS Cluster if it doesn't exist
+        env:
+          AWS_REGION: ap-southeast-2
+          CLUSTER_NAME: balthazar-backend
+        run: |
+          CLUSTER_STATUS=$(aws ecs describe-clusters --clusters ${CLUSTER_NAME} --query 'clusters[0].status' --output text || echo "MISSING")
+          if [ "$CLUSTER_STATUS" == "MISSING" ]; then
+            echo "Creating ECS cluster..."
+            aws ecs create-cluster --cluster-name ${CLUSTER_NAME}
+          else
+            echo "ECS cluster already exists."
+          fi
+
+      - name: Create CloudWatch Log Group if it doesn't exist
+        env:
+          AWS_REGION: ap-southeast-2
+          LOG_GROUP_NAME: /ecs/balthazar-backend-service
+        run: |
+          LOG_GROUP_STATUS=$(aws logs describe-log-groups --log-group-name-prefix ${LOG_GROUP_NAME} --query 'logGroups[0].logGroupName' --output text || echo "MISSING")
+          if [ "$LOG_GROUP_STATUS" == "MISSING" ]; then
+            echo "Creating CloudWatch log group..."
+            aws logs create-log-group --log-group-name ${LOG_GROUP_NAME}
+          else
+            echo "CloudWatch log group already exists."
+          fi
+
       - name: Create ECS Service if it doesn't exist
         env:
           AWS_REGION: ap-southeast-2
-          CLUSTER_NAME: balthazar-cluster2
-          SERVICE_NAME: balthazar-backend-service2
-          TASK_DEFINITION: balthazar-task2
+          CLUSTER_NAME: balthazar-backend
+          SERVICE_NAME: balthazar-backend-service
+          TASK_DEFINITION: balthazar-task
           SUBNET_ID: subnet-0ab2124445e116c31
           SECURITY_GROUP_ID: sg-0e1be39336e6b9288
         run: |
@@ -63,10 +89,10 @@ jobs:
       - name: Register Task Definition and Update ECS Service
         env:
           AWS_REGION: ap-southeast-2
-          CLUSTER_NAME: balthazar-cluster2
-          SERVICE_NAME: balthazar-backend-service2
-          TASK_DEFINITION: balthazar-task2
-          CONTAINER_NAME: balthazar-backend2
+          CLUSTER_NAME: balthazar-backend
+          SERVICE_NAME: balthazar-backend-service
+          TASK_DEFINITION: balthazar-task
+          CONTAINER_NAME: balthazar-backend
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: balthazar-backend
           IMAGE_TAG: latest
