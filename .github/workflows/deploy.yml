@@ -126,14 +126,15 @@ jobs:
         env:
           TASK_DEFINITION: balthazar-task
         run: |
-          echo "TASK_DEFINITION_ARN=$(aws ecs describe-task-definition --task-definition ${TASK_DEFINITION} --query 'taskDefinition.taskDefinitionArn' --output text)" >> $GITHUB_ENV
+          LATEST_TASK_DEF=$(aws ecs describe-task-definition --task-definition ${TASK_DEFINITION} --query 'taskDefinition.taskDefinitionArn' --output text)
+          echo "LATEST_TASK_DEF=$LATEST_TASK_DEF" >> $GITHUB_ENV
 
       - name: Create ECS Service if it doesn't exist
         env:
           AWS_REGION: ap-southeast-2
           CLUSTER_NAME: balthazar-backend
           SERVICE_NAME: balthazar-backend-service
-          TASK_DEFINITION: ${{ env.TASK_DEFINITION_ARN }}
+          TASK_DEFINITION: ${{ env.LATEST_TASK_DEF }}
           SUBNET_ID: subnet-0ab2124445e116c31
           SECURITY_GROUP_ID: sg-0e1be39336e6b9288
         run: |
@@ -150,7 +151,7 @@ jobs:
           AWS_REGION: ap-southeast-2
           CLUSTER_NAME: balthazar-backend
           SERVICE_NAME: balthazar-backend-service
-          TASK_DEFINITION: ${{ env.TASK_DEFINITION_ARN }}
+          TASK_DEFINITION: ${{ env.LATEST_TASK_DEF }}
         run: |
           # Update the ECS service to use the new task definition
           aws ecs update-service --cluster ${CLUSTER_NAME} --service ${SERVICE_NAME} --task-definition ${TASK_DEFINITION} --force-new-deployment
