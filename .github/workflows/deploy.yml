@@ -46,9 +46,9 @@ jobs:
       - name: Create ECS Service if it doesn't exist
         env:
           AWS_REGION: ap-southeast-2
-          CLUSTER_NAME: balthazar-cluster
-          SERVICE_NAME: balthazar-backend-service
-          TASK_DEFINITION: balthazar-task
+          CLUSTER_NAME: balthazar-cluster2
+          SERVICE_NAME: balthazar-backend-service2
+          TASK_DEFINITION: balthazar-task2
           SUBNET_ID: subnet-0ab2124445e116c31
           SECURITY_GROUP_ID: sg-0e1be39336e6b9288
         run: |
@@ -63,10 +63,10 @@ jobs:
       - name: Register Task Definition and Update ECS Service
         env:
           AWS_REGION: ap-southeast-2
-          CLUSTER_NAME: balthazar-cluster
-          SERVICE_NAME: balthazar-backend-service
-          TASK_DEFINITION: balthazar-task
-          CONTAINER_NAME: balthazar-backend
+          CLUSTER_NAME: balthazar-cluster2
+          SERVICE_NAME: balthazar-backend-service2
+          TASK_DEFINITION: balthazar-task2
+          CONTAINER_NAME: balthazar-backend2
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: balthazar-backend
           IMAGE_TAG: latest
