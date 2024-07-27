@@ -48,9 +48,12 @@ jobs:
           AWS_REGION: ap-southeast-2
           CLUSTER_NAME: balthazar-backend
         run: |
-          CLUSTER_STATUS=$(aws ecs describe-clusters --clusters ${CLUSTER_NAME} --query 'clusters[0].status' --output text || echo "MISSING")
+          CLUSTER_STATUS=$(aws ecs describe-clusters --clusters ${CLUSTER_NAME} --query 'clusters[0].status' --output text)
           if [ "$CLUSTER_STATUS" == "MISSING" ]; then
             echo "Creating ECS cluster..."
+            aws ecs create-cluster --cluster-name ${CLUSTER_NAME}
+          elif [ "$CLUSTER_STATUS" == "INACTIVE" ]; then
+            echo "Cluster is inactive, recreating..."
             aws ecs create-cluster --cluster-name ${CLUSTER_NAME}
           else
             echo "ECS cluster already exists."
@@ -78,7 +81,7 @@ jobs:
           SUBNET_ID: subnet-0ab2124445e116c31
           SECURITY_GROUP_ID: sg-0e1be39336e6b9288
         run: |
-          SERVICE_STATUS=$(aws ecs describe-services --cluster ${CLUSTER_NAME} --services ${SERVICE_NAME} --query 'failures[0].reason' --output text)
+          SERVICE_STATUS=$(aws ecs describe-services --cluster ${CLUSTER_NAME} --services ${SERVICE_NAME} --query 'failures[0].reason' --output text || echo "MISSING")
           if [ "$SERVICE_STATUS" == "MISSING" ]; then
             echo "Creating ECS service..."
             aws ecs create-service --cluster ${CLUSTER_NAME} --service-name ${SERVICE_NAME} --task-definition ${TASK_DEFINITION} --desired-count 1 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[${SUBNET_ID}],securityGroups=[${SECURITY_GROUP_ID}],assignPublicIp='ENABLED'}"
