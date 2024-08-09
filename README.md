@@ -10,7 +10,7 @@ Balthazar NFT Viewer is a web application that allows users to view NFT data for
 
 ## Production Ready AWS Architecture
 
-![alt text](image-4.png)
+![alt text](image-5.png)
 
 ## Technologies and APIs
 

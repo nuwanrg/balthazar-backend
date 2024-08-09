@@ -48,9 +48,8 @@ jobs:
           AWS_REGION: ap-southeast-2
           CLUSTER_NAME: balthazar-backend
         run: |
-          CLUSTER_STATUS=$(aws ecs describe-clusters --clusters ${CLUSTER_NAME} --query 'clusters[0].status' --output text 2>/dev/null || echo "MISSING")
-          echo "Cluster Status: $CLUSTER_STATUS"
-          if [ "$CLUSTER_STATUS" == "MISSING" ] || [ "$CLUSTER_STATUS" == "None" ]; then
+          CLUSTER_STATUS=$(aws ecs describe-clusters --clusters ${CLUSTER_NAME} --query 'clusters[0].status' --output text || echo "MISSING")
+          if [ "$CLUSTER_STATUS" == "MISSING" ]; then
             echo "Creating ECS cluster..."
             aws ecs create-cluster --cluster-name ${CLUSTER_NAME}
           elif [ "$CLUSTER_STATUS" == "INACTIVE" ]; then
@@ -65,7 +64,7 @@ jobs:
           AWS_REGION: ap-southeast-2
           LOG_GROUP_NAME: /ecs/balthazar-backend-service
         run: |
-          LOG_GROUP_STATUS=$(aws logs describe-log-groups --log-group-name-prefix ${LOG_GROUP_NAME} --query 'logGroups[0].logGroupName' --output text 2>/dev/null || echo "MISSING")
+          LOG_GROUP_STATUS=$(aws logs describe-log-groups --log-group-name-prefix ${LOG_GROUP_NAME} --query 'logGroups[0].logGroupName' --output text || echo "MISSING")
           if [ "$LOG_GROUP_STATUS" == "MISSING" ] || [ "$LOG_GROUP_STATUS" == "None" ]; then
             echo "Creating CloudWatch log group..."
             aws logs create-log-group --log-group-name ${LOG_GROUP_NAME}
@@ -73,9 +72,43 @@ jobs:
             echo "CloudWatch log group already exists."
           fi
 
-      - name: Register Task Definition
+      - name: Create Target Group if it doesn't exist
         env:
           AWS_REGION: ap-southeast-2
+          VPC_ID: vpc-090404bcbc53bc3d0 # Replace with your actual VPC ID
+          TARGET_GROUP_NAME: balthazar-target-group
+        run: |
+          TARGET_GROUP_ARN=$(aws elbv2 describe-target-groups --names ${TARGET_GROUP_NAME} --query 'TargetGroups[0].TargetGroupArn' --output text || echo "MISSING")
+          if [ "$TARGET_GROUP_ARN" == "MISSING" ]; then
+            echo "Creating Target Group..."
+            TARGET_GROUP_ARN=$(aws elbv2 create-target-group --name ${TARGET_GROUP_NAME} --protocol HTTP --port 3001 --vpc-id ${VPC_ID} --target-type ip --query 'TargetGroups[0].TargetGroupArn' --output text)
+          else
+            echo "Target Group already exists."
+          fi
+          echo "TARGET_GROUP_ARN=$TARGET_GROUP_ARN" >> $GITHUB_ENV
+
+      - name: Create ECS Service if it doesn't exist
+        env:
+          AWS_REGION: ap-southeast-2
+          CLUSTER_NAME: balthazar-backend
+          SERVICE_NAME: balthazar-backend-service
+          TASK_DEFINITION: balthazar-task
+          SUBNET_ID: subnet-0ab2124445e116c31 # Replace with your actual Subnet ID
+          SECURITY_GROUP_ID: sg-0e1be39336e6b9288 # Replace with your actual Security Group ID
+        run: |
+          SERVICE_STATUS=$(aws ecs describe-services --cluster ${CLUSTER_NAME} --services ${SERVICE_NAME} --query 'failures[0].reason' --output text)
+          if [ "$SERVICE_STATUS" == "MISSING" ] || [ "$SERVICE_STATUS" == "None" ]; then
+            echo "Creating ECS service..."
+            aws ecs create-service --cluster ${CLUSTER_NAME} --service-name ${SERVICE_NAME} --task-definition ${TASK_DEFINITION} --desired-count 1 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[${SUBNET_ID}],securityGroups=[${SECURITY_GROUP_ID}],assignPublicIp='ENABLED'}" --load-balancers "targetGroupArn=${{ env.TARGET_GROUP_ARN }},containerName=balthazar-backend,containerPort=3001"
+          else
+            echo "ECS service already exists."
+          fi
+
+      - name: Register Task Definition and Update ECS Service
+        env:
+          AWS_REGION: ap-southeast-2
+          CLUSTER_NAME: balthazar-backend
+          SERVICE_NAME: balthazar-backend-service
           TASK_DEFINITION: balthazar-task
           CONTAINER_NAME: balthazar-backend
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -87,8 +120,8 @@ jobs:
           {
             "family": "${TASK_DEFINITION}",
             "networkMode": "awsvpc",
-            "executionRoleArn": "arn:aws:iam::727210836757:role/ecsTaskExecutionRole",
-            "taskRoleArn": "arn:aws:iam::727210836757:role/taskRoleArn",
+            "executionRoleArn": "arn:aws:iam::727210836757:role/ecsTaskExecutionRole",  # Replace with your actual execution role ARN
+            "taskRoleArn": "arn:aws:iam::727210836757:role/taskRoleArn",  # Replace with your actual task role ARN
             "containerDefinitions": [
               {
                 "name": "${CONTAINER_NAME}",
@@ -105,7 +138,7 @@ jobs:
                 "logConfiguration": {
                   "logDriver": "awslogs",
                   "options": {
-                    "awslogs-group": "/ecs/balthazar-backend-service",
+                    "awslogs-group": "/ecs/${SERVICE_NAME}",
                     "awslogs-region": "${AWS_REGION}",
                     "awslogs-stream-prefix": "ecs"
                   }
@@ -121,37 +154,5 @@ jobs:
           # Register the task definition
           aws ecs register-task-definition --cli-input-json file://taskdef.json
 
-      - name: Get latest Task Definition revision
-        id: get-task-def
-        env:
-          TASK_DEFINITION: balthazar-task
-        run: |
-          LATEST_TASK_DEF=$(aws ecs describe-task-definition --task-definition ${TASK_DEFINITION} --query 'taskDefinition.taskDefinitionArn' --output text)
-          echo "LATEST_TASK_DEF=$LATEST_TASK_DEF" >> $GITHUB_ENV
-
-      - name: Create ECS Service if it doesn't exist
-        env:
-          AWS_REGION: ap-southeast-2
-          CLUSTER_NAME: balthazar-backend
-          SERVICE_NAME: balthazar-backend-service
-          TASK_DEFINITION: ${{ env.LATEST_TASK_DEF }}
-          SUBNET_ID: subnet-0ab2124445e116c31
-          SECURITY_GROUP_ID: sg-0e1be39336e6b9288
-        run: |
-          SERVICE_STATUS=$(aws ecs describe-services --cluster ${CLUSTER_NAME} --services ${SERVICE_NAME} --query 'failures[0].reason' --output text || echo "MISSING")
-          if [ "$SERVICE_STATUS" == "MISSING" ]; then
-            echo "Creating ECS service..."
-            aws ecs create-service --cluster ${CLUSTER_NAME} --service-name ${SERVICE_NAME} --task-definition ${TASK_DEFINITION} --desired-count 1 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[${SUBNET_ID}],securityGroups=[${SECURITY_GROUP_ID}],assignPublicIp='ENABLED'}"
-          else
-            echo "ECS service already exists."
-          fi
-
-      - name: Update ECS Service
-        env:
-          AWS_REGION: ap-southeast-2
-          CLUSTER_NAME: balthazar-backend
-          SERVICE_NAME: balthazar-backend-service
-          TASK_DEFINITION: ${{ env.LATEST_TASK_DEF }}
-        run: |
           # Update the ECS service to use the new task definition
-          aws ecs update-service --cluster ${CLUSTER_NAME} --service ${SERVICE_NAME} --task-definition ${TASK_DEFINITION} --force-new-deployment
+          aws ecs update-service --cluster ${CLUSTER_NAME} --service ${SERVICE_NAME} --force-new-deployment
