@@ -87,6 +87,36 @@ jobs:
           fi
           echo "TARGET_GROUP_ARN=$TARGET_GROUP_ARN" >> $GITHUB_ENV
 
+      - name: Create Load Balancer if it doesn't exist
+        env:
+          AWS_REGION: ap-southeast-2
+          VPC_ID: vpc-090404bcbc53bc3d0 # Replace with your actual VPC ID
+          LOAD_BALANCER_NAME: balthazar-alb
+        run: |
+          LOAD_BALANCER_ARN=$(aws elbv2 describe-load-balancers --names ${LOAD_BALANCER_NAME} --query 'LoadBalancers[0].LoadBalancerArn' --output text || echo "MISSING")
+          if [ "$LOAD_BALANCER_ARN" == "MISSING" ]; then
+            echo "Creating Load Balancer..."
+            LOAD_BALANCER_ARN=$(aws elbv2 create-load-balancer --name ${LOAD_BALANCER_NAME} --subnets ${SUBNET_ID} --security-groups ${SECURITY_GROUP_ID} --scheme internet-facing --type application --query 'LoadBalancers[0].LoadBalancerArn' --output text)
+          else
+            echo "Load Balancer already exists."
+          fi
+          echo "LOAD_BALANCER_ARN=$LOAD_BALANCER_ARN" >> $GITHUB_ENV
+
+      - name: Attach Target Group to Load Balancer
+        env:
+          AWS_REGION: ap-southeast-2
+          LOAD_BALANCER_ARN: ${{ env.LOAD_BALANCER_ARN }}
+          TARGET_GROUP_ARN: ${{ env.TARGET_GROUP_ARN }}
+        run: |
+          LISTENER_ARN=$(aws elbv2 describe-listeners --load-balancer-arn ${LOAD_BALANCER_ARN} --query 'Listeners[0].ListenerArn' --output text || echo "MISSING")
+          if [ "$LISTENER_ARN" == "MISSING" ]; then
+            echo "Creating Listener for Load Balancer..."
+            LISTENER_ARN=$(aws elbv2 create-listener --load-balancer-arn ${LOAD_BALANCER_ARN} --protocol HTTP --port 80 --default-actions Type=forward,TargetGroupArn=${TARGET_GROUP_ARN} --query 'Listeners[0].ListenerArn' --output text)
+          else
+            echo "Listener already exists."
+          fi
+          echo "LISTENER_ARN=$LISTENER_ARN" >> $GITHUB_ENV
+
       - name: Create ECS Service if it doesn't exist
         env:
           AWS_REGION: ap-southeast-2
