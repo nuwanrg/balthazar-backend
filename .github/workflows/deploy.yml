@@ -56,7 +56,7 @@ jobs:
             echo "Cluster is inactive, recreating..."
             aws ecs create-cluster --cluster-name ${CLUSTER_NAME}
           else
-            echo "ECS cluster already exists."
+            echo "ECS cluster already exists!"
           fi
 
       - name: Create CloudWatch Log Group if it doesn't exist
