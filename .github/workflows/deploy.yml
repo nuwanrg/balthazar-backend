@@ -76,7 +76,7 @@ jobs:
         env:
           AWS_REGION: ap-southeast-2
           VPC_ID: vpc-090404bcbc53bc3d0 # Replace with your actual VPC ID
-          TARGET_GROUP_NAME: balthazar-target-group
+          TARGET_GROUP_NAME: balthazar-tg
         run: |
           TARGET_GROUP_ARN=$(aws elbv2 describe-target-groups --names ${TARGET_GROUP_NAME} --query 'TargetGroups[0].TargetGroupArn' --output text || echo "MISSING")
           if [ "$TARGET_GROUP_ARN" == "MISSING" ]; then
